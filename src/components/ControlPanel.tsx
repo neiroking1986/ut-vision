@@ -3,7 +3,11 @@ import peps from '../data/peps.json';
 import materials from '../data/materials.json';
 import { useState } from 'react';
 
-const GOST_PRESETS: Record<string, Record<number, Partial<typeof useStore.getState().weld>>> = {
+interface WeldPreset {
+  B1?: number; B2?: number; H1?: number; H2?: number; e?: number;
+}
+
+const GOST_PRESETS: Record<string, Record<number, WeldPreset>> = {
   '16037': {
     8: { B1: 1, B2: 1, H1: 0, H2: 0, e: 1.5 },
     10: { B1: 1.5, B2: 1.5, H1: 0, H2: 0, e: 2 },
@@ -28,7 +32,11 @@ const GOST_PRESETS: Record<string, Record<number, Partial<typeof useStore.getSta
 };
 
 export default function ControlPanel() {
-  const { pep, material, weld, side, gost, setPep, setMaterial, setBounces, setSide, setGost, setWeld, setArrow, toggleScheme } = useStore();
+  const { 
+    pep, material, weld, side, gost, actData, 
+    setPep, setMaterial, setBounces, setSide, setGost, setWeld, setArrow, toggleScheme, setActData 
+  } = useStore();
+  
   const [tab, setTab] = useState<'control' | 'weld' | 'act'>('control');
 
   const applyGost = (g: 'none' | '16037' | '5264') => {
