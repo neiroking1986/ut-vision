@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store/useStore';
-import { calcAcoustics, traceRay, calcBeamFan, getReinforcementLimit } from '../core/acoustics';
+import { calcAcoustics, traceRay, calcBeamFan } from '../core/acoustics';
 
 export default function UTCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -9,7 +9,8 @@ export default function UTCanvas() {
   const isPanning = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
 
-  const limit = getReinforcementLimit(weld.B1, weld.e);
+  // Граница валика: половина зазора + половина ширины усиления
+  const limit = weld.B1 / 2 + weld.e / 2;
 
   const draw = useCallback(() => {
     const ctx = canvasRef.current?.getContext('2d');
@@ -30,19 +31,19 @@ export default function UTCanvas() {
     ctx.lineTo(weld.L2, weld.H); ctx.lineTo(-weld.L1, weld.H);
     ctx.closePath(); ctx.fill(); ctx.stroke();
 
-    // Валик усиления (верх)
-    ctx.fillStyle = '#94a3b8';
+    // Валик усиления (только контур)
+    ctx.strokeStyle = '#475569'; ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.moveTo(-weld.B1/2 - 2, 0);
-    ctx.quadraticCurveTo(0, -weld.e, weld.B1/2 + 2, 0);
-    ctx.fill();
+    ctx.moveTo(-weld.B1/2, 0);
+    ctx.quadraticCurveTo(0, -weld.e, weld.B1/2, 0);
+    ctx.stroke();
 
     // Ось шва
     ctx.strokeStyle = '#94a3b8'; ctx.setLineDash([2, 2]); ctx.lineWidth = 0.3;
     ctx.beginPath(); ctx.moveTo(0, -weld.e - 2); ctx.lineTo(0, weld.H + 5); ctx.stroke();
     ctx.setLineDash([]);
 
-    // Точка ввода
+    // Точка ввода (стрела = расстояние от торца до точки ввода)
     const xEntry = side === 1 ? pepFrontX + pep.arrow : pepFrontX - pep.arrow;
     
     // Акустика
@@ -50,18 +51,21 @@ export default function UTCanvas() {
     const fan = calcBeamFan(xEntry, pep.angle, ac.theta6, ac.theta20, weld.H, pep.bounces, side);
     const centerRay = traceRay(xEntry, pep.angle, weld.H, pep.bounces, side);
 
-    ctx.fillStyle = 'rgba(59,130,246,0.12)';
-    ctx.beginPath();
-    fan.left20.forEach(s => ctx.moveTo(s.x1, s.y1) || ctx.lineTo(s.x2, s.y2));
-    fan.right20.reverse().forEach(s => ctx.lineTo(s.x2, s.y2));
-    ctx.closePath(); ctx.fill();
+    // Веер ДН (-20 дБ и -6 дБ) рисуем посегментно, чтобы корректно отображался при отражениях
+    const drawFanLayer = (left: typeof fan.left6, right: typeof fan.right6, color: string) => {
+      ctx.fillStyle = color;
+      for (let i = 0; i < left.length; i++) {
+        const l = left[i], r = right[i];
+        ctx.beginPath();
+        ctx.moveTo(l.x1, l.y1); ctx.lineTo(l.x2, l.y2);
+        ctx.lineTo(r.x2, r.y2); ctx.lineTo(r.x1, r.y1);
+        ctx.closePath(); ctx.fill();
+      }
+    };
+    drawFanLayer(fan.left20, fan.right20, 'rgba(59,130,246,0.12)');
+    drawFanLayer(fan.left6, fan.right6, 'rgba(59,130,246,0.30)');
 
-    ctx.fillStyle = 'rgba(59,130,246,0.3)';
-    ctx.beginPath();
-    fan.left6.forEach(s => ctx.moveTo(s.x1, s.y1) || ctx.lineTo(s.x2, s.y2));
-    fan.right6.reverse().forEach(s => ctx.lineTo(s.x2, s.y2));
-    ctx.closePath(); ctx.fill();
-
+    // Центральный луч
     ctx.strokeStyle = '#1d4ed8'; ctx.lineWidth = 1;
     ctx.beginPath(); centerRay.forEach(s => { ctx.moveTo(s.x1, s.y1); ctx.lineTo(s.x2, s.y2); }); ctx.stroke();
 
@@ -77,7 +81,7 @@ export default function UTCanvas() {
       ctx.fillText(pep.name.split(' ')[0], pepFrontX + 2, -3);
     }
 
-    // Точка ввода (маркер)
+    // Точка ввода
     ctx.fillStyle = '#dc2626';
     ctx.beginPath(); ctx.arc(xEntry, 0, 1.5, 0, Math.PI*2); ctx.fill();
 
@@ -87,7 +91,7 @@ export default function UTCanvas() {
       ctx.fillStyle = r.status === 'ok' ? '#16a34a' : '#dc2626';
       ctx.beginPath(); ctx.arc(rx, r.y, 2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#000'; ctx.font = '2.5px sans-serif';
-      ctx.fillText(`Z=${r.y} X=${Math.round(r.X)} S=${Math.round(r.S)}`, rx + 3, r.y - 2);
+      ctx.fillText(`Z=${r.y} X=${r.X} S=${r.S}`, rx + 3, r.y - 2);
     });
 
     ctx.restore();
@@ -130,9 +134,16 @@ export default function UTCanvas() {
   const handleMouseUp = () => { isDragging.current = false; isPanning.current = false; };
 
   return (
-    <canvas ref={canvasRef} width={800} height={400}
-      className="border rounded bg-white cursor-grab active:cursor-grabbing shadow"
-      onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
-    />
+    <div className="relative">
+      <canvas ref={canvasRef} width={800} height={400}
+        className="border rounded bg-white cursor-grab active:cursor-grabbing shadow"
+        onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+      />
+      {/* Кнопки масштабирования */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1">
+        <button onClick={() => setCanvas({ scale: Math.min(15, canvas.scale * 1.2) })} className="w-8 h-8 bg-white/90 border rounded shadow hover:bg-gray-100 font-bold text-lg">+</button>
+        <button onClick={() => setCanvas({ scale: Math.max(2, canvas.scale / 1.2) })} className="w-8 h-8 bg-white/90 border rounded shadow hover:bg-gray-100 font-bold text-lg">−</button>
+      </div>
+    </div>
   );
 }
