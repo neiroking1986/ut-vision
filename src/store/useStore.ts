@@ -5,7 +5,8 @@ import materials from '../data/materials.json';
 export interface Reflector {
   id: number; x: number; y: number; desc: string; status: 'ok' | 'fail';
   binding: 'axis' | 'pep'; weldCode: string; weldDate: string; partType: string;
-  Z: number; X: number; S: number; // расчётные координаты
+  leg: number; // Номер колена (0=прямой, 1=однократно отражённый и т.д.)
+  Z: number; X: number; S: number;
 }
 
 interface ActData {
@@ -22,7 +23,7 @@ interface State {
   weld: { L1: number; L2: number; H: number; H1: number; H2: number; B1: number; B2: number; B3: number; e: number };
   side: 1 | 2;
   gost: 'none' | '16037' | '5264';
-  pepFrontX: number; // координата торца ПЭП
+  pepFrontX: number;
   canvas: { scale: number; panX: number; panY: number };
   reflectors: Reflector[];
   actData: ActData;
@@ -43,7 +44,7 @@ interface State {
   toggleScheme: () => void;
 }
 
-export const useStore = create<State>((set, get) => ({
+export const useStore = create<State>((set) => ({
   pep: { ...peps[1], bounces: 2, arrow: 15 },
   material: materials[0],
   weld: { L1: 100, L2: 100, H: 32, H1: 14, H2: 4, B1: 48, B2: 24, B3: 48, e: 3 },
@@ -52,8 +53,8 @@ export const useStore = create<State>((set, get) => ({
   pepFrontX: -67,
   canvas: { scale: 5, panX: 0, panY: 0 },
   reflectors: [
-    { id: 1, x: -19, y: 30, desc: '', status: 'ok', binding: 'axis', weldCode: 'КСС-1', weldDate: '', partType: '', Z: 30, X: 48, S: 0 },
-    { id: 2, x: 14, y: 10, desc: '', status: 'ok', binding: 'axis', weldCode: 'КСС-2', weldDate: '', partType: '', Z: 10, X: 81, S: 0 }
+    { id: 1, x: -19, y: 30, desc: '', status: 'ok', binding: 'axis', weldCode: 'КСС-1', weldDate: '', partType: '', leg: 0, Z: 30, X: 0, S: 0 },
+    { id: 2, x: 14, y: 10, desc: '', status: 'ok', binding: 'axis', weldCode: 'КСС-2', weldDate: '', partType: '', leg: 1, Z: 10, X: 0, S: 0 }
   ],
   actData: {
     actNumber: '001', certificateNumber: '______', customer: '',
@@ -73,7 +74,7 @@ export const useStore = create<State>((set, get) => ({
   setGost: (g) => set({ gost: g }),
   setWeld: (w) => set((s) => ({ weld: { ...s.weld, ...w } })),
   setCanvas: (c) => set((s) => ({ canvas: { ...s.canvas, ...c } })),
-  addReflector: () => set((s) => ({ reflectors: [...s.reflectors, { id: Date.now(), x: 0, y: 15, desc: '', status: 'ok', binding: 'axis', weldCode: `КСС-${s.reflectors.length+1}`, weldDate: '', partType: '', Z: 15, X: 0, S: 0 }] })),
+  addReflector: () => set((s) => ({ reflectors: [...s.reflectors, { id: Date.now(), x: 0, y: 15, desc: '', status: 'ok', binding: 'axis', weldCode: `КСС-${s.reflectors.length+1}`, weldDate: '', partType: '', leg: 0, Z: 15, X: 0, S: 0 }] })),
   removeReflector: (id) => set((s) => ({ reflectors: s.reflectors.filter(r => r.id !== id) })),
   updateReflector: (id, data) => set((s) => ({ reflectors: s.reflectors.map(r => r.id === id ? { ...r, ...data } : r) })),
   setActData: (d) => set((s) => ({ actData: { ...s.actData, ...d } })),
