@@ -2,6 +2,7 @@ import UTCanvas from './components/UTCanvas';
 import ControlPanel from './components/ControlPanel';
 import ResultsTable from './components/ResultsTable';
 import ReportPDF from './components/ReportPDF';
+import SchemeReference from './components/SchemeReference';
 
 export default function App() {
   return (
@@ -12,7 +13,7 @@ export default function App() {
           <div className="flex-1 space-y-3">
             <UTCanvas />
             <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded">
-              💡 <b>ЛКМ</b> — перемещение ПЭП | <b>Shift+ЛКМ</b> — панорамирование | <b>Колёсико</b> — масштаб
+              💡 <b>ЛКМ</b> — перемещение ПЭП (упирается в валик) | <b>Shift+ЛКМ</b> — панорамирование | <b>Колёсико</b> — масштаб
             </div>
           </div>
           <div className="w-full xl:w-96 space-y-4">
@@ -22,6 +23,7 @@ export default function App() {
           </div>
         </div>
       </div>
+      <SchemeReference />
     </div>
   );
 }
