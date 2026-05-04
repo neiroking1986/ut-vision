@@ -1,0 +1,5 @@
+[
+  {"id":"S5280","name":"S5280 1,8A50D18CS","freq":1.8,"diameter":18,"angle":50,"arrow":17,"dimsW":46},
+  {"id":"S5182","name":"S5182 2,5A65D12CS","freq":2.5,"diameter":12,"angle":65,"arrow":15,"dimsW":31},
+  {"id":"S5096","name":"S5096 5.0A70D6CS","freq":5.0,"diameter":6,"angle":70,"arrow":9,"dimsW":26.5}
+]
