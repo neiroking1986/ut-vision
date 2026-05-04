@@ -1,23 +1,21 @@
 import { useStore } from '../store/useStore';
 import { useEffect } from 'react';
-import { calcSoundPath } from '../core/acoustics';
+import { calcPathAndCoords } from '../core/acoustics';
 
 export default function ResultsTable() {
   const { reflectors, pep, weld, side, pepFrontX, addReflector, removeReflector, updateReflector } = useStore();
   const inputClass = "w-full border p-1 rounded text-xs";
 
-  // Автопересчёт Z, X, S при изменении координат или параметров
+  // Автопересчёт Z, X, S при изменении глубины, колена или параметров ПЭП
   useEffect(() => {
     reflectors.forEach(r => {
       const Z = r.y;
-      const rx = r.binding === 'pep' ? (side === 1 ? pepFrontX + r.x : pepFrontX - r.x) : r.x;
-      const X = Math.abs(rx - (side === 1 ? pepFrontX : pepFrontX));
-      const S = calcSoundPath(Z, weld.H, pep.angle, side);
-      if (r.Z !== Z || r.X !== X || r.S !== Math.round(S)) {
-        updateReflector(r.id, { Z, X, S: Math.round(S) });
+      const { S, X } = calcPathAndCoords(Z, weld.H, pep.angle, r.leg, pep.arrow);
+      if (r.Z !== Z || r.X !== X || r.S !== S) {
+        updateReflector(r.id, { Z, X, S });
       }
     });
-  }, [reflectors, pepFrontX, pep.angle, weld.H, side]);
+  }, [reflectors.map(r => `${r.y}-${r.leg}`).join(','), pepFrontX, pep.angle, pep.arrow, weld.H, side]);
 
   return (
     <div className="space-y-2 text-sm bg-white p-4 rounded-lg shadow">
@@ -27,8 +25,13 @@ export default function ResultsTable() {
       </div>
       {reflectors.map(r => (
         <div key={r.id} className="grid grid-cols-12 gap-1 items-center border p-2 rounded bg-gray-50">
-          <input type="number" value={r.x} onChange={e=>updateReflector(r.id,{x:+e.target.value})} className={`${inputClass} col-span-2`} placeholder="X"/>
-          <input type="number" value={r.y} onChange={e=>updateReflector(r.id,{y:+e.target.value})} className={`${inputClass} col-span-2`} placeholder="Y"/>
+          <input type="number" value={r.y} onChange={e=>updateReflector(r.id,{y:+e.target.value})} className={`${inputClass} col-span-2`} placeholder="Z"/>
+          <select value={r.leg} onChange={e=>updateReflector(r.id,{leg:+e.target.value})} className={`${inputClass} col-span-3`}>
+            <option value={0}>Прямой (0)</option>
+            <option value={1}>1 отраж.</option>
+            <option value={2}>2 отраж.</option>
+            <option value={3}>3 отраж.</option>
+          </select>
           <select value={r.binding} onChange={e=>updateReflector(r.id,{binding:e.target.value as any})} className={`${inputClass} col-span-3`}>
             <option value="axis">От оси шва</option>
             <option value="pep">От торца ПЭП</option>
@@ -39,13 +42,16 @@ export default function ResultsTable() {
             {r.status==='ok'?'Годен':'Не годен'}
           </button>
           <button onClick={()=>removeReflector(r.id)} className="col-span-1 text-red-500 hover:text-red-700 font-bold text-center">✕</button>
-          <div className="col-span-12 grid grid-cols-3 gap-1 text-xs text-gray-600 mt-1">
-            <span>Z={r.Z} мм</span><span>X={r.X} мм</span><span>S={r.S} мм</span>
+          
+          <div className="col-span-12 grid grid-cols-3 gap-1 text-xs text-gray-700 font-medium mt-1 bg-blue-50 p-1 rounded">
+            <span>Z = {r.Z} мм</span>
+            <span>X = {r.X} мм (от торца)</span>
+            <span>S = {r.S} мм (по лучу)</span>
           </div>
           <input placeholder="Описание / примечание" value={r.desc} onChange={e=>updateReflector(r.id,{desc:e.target.value})} className={`${inputClass} col-span-12 mt-1`}/>
         </div>
       ))}
-      <p className="text-xs text-gray-500 mt-1">Z — глубина, X — от торца ПЭП, S — путь по лучу</p>
+      <p className="text-xs text-gray-500 mt-1">X и S рассчитываются геометрически для выбранного колена центрального луча.</p>
     </div>
   );
 }
